@@ -1,3 +1,5 @@
 # DataSets
-Q1/train/
 Q1/test.npy
+Q1/train
+Q1/svm_model
+Q1/libsvm

@@ -7,8 +7,8 @@ from sklearn import svm
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 import pickle
-import random
 
 from timeit import default_timer as timer
 
@@ -39,67 +39,66 @@ def calculate_time_elapsed():
     start = timer()
     return time_elapsed
 
-def Q1(train_x, train_y, test_data, model=None, pred_file="predictions.txt"):
-    kmeans = KMeans(n_clusters=20, n_init=10)
+def save_submission_file(data, pred_file):
+    f = open(pred_file,'w')
+    f.write("ID,CATEGORY\n")
+    for i,pred in enumerate(data):
+        f.write(str(i)+","+str(pred)+'\n')
+    f.close()
 
-    #if model exists the only predict
-    if(model):
-        kmeans.predict([[0, 0], [4, 4]])
-        return
-    
-    kmeans.fit(train_x)
-    pickle.dump(kmeans, open("kmeans_model", 'wb'))
-    
-    if(model):
-        predictions = predict_from_model(model, x_projected)
-        np.save("predictions", predictions)
-        correct = 0
-        for (corr,pred) in zip(train_y, predictions):
-            if(corr==pred): correct += 1
-        accuracy = correct/x.shape[0] * 100
-        print("Training Accuracy: %.2f%%" %(accuracy) )
+def Q1(train_x, train_y, test_data, model=None, pred_file="predictions.txt"):
+    x = train_x.reshape((train_x.shape[0]*train_x.shape[1],train_x.shape[2]))
+    if(not model):
+        ##########TRAINING##############
+        kmeans = KMeans(n_clusters=20, n_init=10)
+        kmeans.fit(x)
+        pickle.dump(kmeans, open("kmeans_model", 'wb'))
+        model = kmeans
         
-        predictions = predict_from_model(model, test_projected)
-        predictions = np.array(list(map(lambda a:labels_map[a], predictions)))
-        np.save("test_predictions", predictions)
-        print("Predictions done...")
+        print("Kmeans clustering complete...")
         print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
-        return
+    else:
+        model = pickle.load(open(model, 'rb'))
+    ###############TESTING################
     
+    local_labels_map = defaultdict(str)
+    #train set prediction
+    labels = model.labels_
+    total_correct = 0
+    for i in range(20):
+        examples_labels = train_y[np.where(labels==i)]
+        counts = np.bincount(examples_labels)
+        c = np.argmax(counts)
+        local_labels_map[i] = c
+        total_correct += counts[c]
     
-    #train svm model using optimal parameters
-    clf.fit(x_projected, train_y)
-    pickle.dump(clf, open("svm_model", 'wb'))
-    
-    print("Libsvm training complete...")
+    accuracy = total_correct/labels.shape[0] * 100
+    print("Training Accuracy: %.2f%%" %(accuracy) )
+    print("Kmeans train set prediction complete...")
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
     
-    predictions = clf.predict(x_projected)
-#    predictions = np.array(list(map(lambda a:labels_map[a], predictions)))
-    np.save("train_predictions", predictions)
-    correct = 0
-    for (corr,pred) in zip(train_y, predictions):
-        if(corr==pred): correct += 1
-    accuracy = correct/x.shape[0] * 100
-    print("Training accuracy: %.2f%%" %(accuracy) )
     
-    print("Libsvm train set prediction complete...")
+    #test set prediction
+    #predictions = model.predict(test_data)
+    predictions = []
+    centroids = model.cluster_centers_
+    for ex in test_data:
+        min_dist = 1000000000
+        min_cluster = 0
+        for c in range(20):
+            dist = np.linalg.norm(ex-centroids[c])
+            if(dist<min_dist):
+                min_dist = dist
+                min_cluster = c
+        predictions.append(labels_map[local_labels_map[min_cluster]])
+    
+    save_submission_file(predictions, pred_file)
+    
+    print("Kmeans test set prediction complete...")
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
-	
-    predictions = clf.predict(test_projected)
-    predictions = np.array(list(map(lambda a:labels_map[a], predictions)))
-    np.save("test_predictions", predictions)
     
-    print("Libsvm testing complete...")
-    print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
     
-#    np.save("libsvm_in", x_projected)
-#    
-#    print("Writing to file done...")
-#    print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
-    
-def Q2(train_x, train_y, test_data, model=None):
-    pca = PCA(n_components=50)
+def Q2(train_x, train_y, test_data, model=None, pred_file="predictions.txt"):
     x = train_x.reshape((train_x.shape[0]*train_x.shape[1],train_x.shape[2]))
     
 # =============================================================================
@@ -109,85 +108,62 @@ def Q2(train_x, train_y, test_data, model=None):
 #     valid_y = train_y[A_t]
 # =============================================================================
     
-    x_projected = pca.fit_transform(x)/255.0
-    # x_scaled = x/255.0
-    
     pca = PCA(n_components=50)
+    x_projected = pca.fit_transform(x)/255.0
     test_projected = pca.fit_transform(test_data)/255.0
-    # test_scaled = test_data/255.0
     
     print("PCA done...")
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
     
-    #if model exists the only predict
-    if(model):
-        print("ye to hona hi tha!")
-        """
-        predictions = predict_from_model(model, x_projected)
-        # predictions = np.array(list(map(lambda a:labels_map[a], predictions)))
-        np.save("predictions", predictions)
-        correct = 0
-        for (corr,pred) in zip(train_y, predictions):
-            if(corr==pred): correct += 1
-        accuracy = correct/x.shape[0] * 100
-        print("Training Accuracy: %.2f%%" %(accuracy) )
-        """
-        predictions = predict_from_model(model, test_projected)
-        predictions = np.array(list(map(lambda a:labels_map[a], predictions)))
-        np.save("test_predictions", predictions)
-        print("Predictions done...")
+    #if the model does not exist then first train
+    if(not model):
+        ##########TRAINING##############
+        #make svm classifier
+        clf = svm.SVC(decision_function_shape='ovo', verbose=True, shrinking=False)
+        
+    # =============================================================================
+    #     #tune parameters
+    #     Cs = [0.1, 1, 5, 10, 15]
+    #     gammas = [0.01, 0.05, 0.5, 1, 2, 5]
+    #     param_grid = {'C': Cs, 'gamma' : gammas}
+    #     clf = GridSearchCV(clf, param_grid, cv=10)
+    #     clf.fit(x_projected, valid_y)
+    #     pickle.dump(clf, open("svm_model", 'wb'))
+    #     print(clf.best_params_)
+    #     #optimal parameters found: C=5, gamma=0.01
+    # =============================================================================
+        
+        #train svm model using optimal parameters
+        clf.fit(x_projected, train_y)
+        pickle.dump(clf, open("svm_model", 'wb'))
+        
+        model = clf
+        
+        print("Libsvm training complete...")
         print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
-        return
-    
-    #make svm classifier
-    clf = svm.SVC(decision_function_shape='ovo', verbose=True, shrinking=False)
-    
-# =============================================================================
-#     #tune parameters
-#     Cs = [0.1, 1, 5, 10, 15]
-#     gammas = [0.01, 0.05, 0.5, 1, 2, 5]
-#     param_grid = {'C': Cs, 'gamma' : gammas}
-#     clf = GridSearchCV(clf, param_grid, cv=10)
-#     clf.fit(x_projected, valid_y)
-#     pickle.dump(clf, open("svm_model", 'wb'))
-#     print(clf.best_params_)
-#     #optimal parameters found: C=5, gamma=0.01
-# =============================================================================
-    
-    #train svm model using optimal parameters
-    clf.fit(x_projected, train_y)
-    pickle.dump(clf, open("svm_model", 'wb'))
-    
-    print("Libsvm training complete...")
-    print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
-    
-    predictions = clf.predict(x_projected)
-#    predictions = np.array(list(map(lambda a:labels_map[a], predictions)))
-    np.save("train_predictions", predictions)
+    else:
+        model = pickle.load(open(model, 'rb'))
+    ###############TESTING################
+    #train set prediction
+    predictions = predict_from_model(model, x_projected)
     correct = 0
     for (corr,pred) in zip(train_y, predictions):
         if(corr==pred): correct += 1
     accuracy = correct/x.shape[0] * 100
-    print("Training accuracy: %.2f%%" %(accuracy) )
-    
+    print("Training Accuracy: %.2f%%" %(accuracy) )
     print("Libsvm train set prediction complete...")
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
-	
-    predictions = clf.predict(test_projected)
-    predictions = np.array(list(map(lambda a:labels_map[a], predictions)))
-    np.save("test_predictions", predictions)
     
-    print("Libsvm testing complete...")
+    #test set prediction
+    predictions = predict_from_model(model, test_projected)
+    predictions = np.array(list(map(lambda a:labels_map[a], predictions)))
+    save_submission_file(predictions, pred_file)
+    
+    print("Libsvm test set prediction complete...")
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
     
-#    np.save("libsvm_in", x_projected)
-#    
-#    print("Writing to file done...")
-#    print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
-    
-def predict_from_model(model_file, data):
-    clf = pickle.load(open(model_file, 'rb'))
-    return clf.predict(data)
+def predict_from_model(model, data):
+    return model.predict(data)
     
 if __name__=='__main__':
     
@@ -204,7 +180,7 @@ if __name__=='__main__':
     print("Reading data complete...")
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
     
-    Q1(train_x, train_y, test_data)
+    aa=Q1(train_x, train_y, test_data, "kmeans_model")
     
     #visualize_vector(test_data[1])
     #Q2(train_x, train_y, test_data)             #TODO: apply PCA then scale data

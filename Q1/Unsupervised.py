@@ -245,6 +245,11 @@ if __name__=='__main__':
         train_x, train_y, labels_map = load_train_data("train/")
         test_data = load_test_data("test.npy")
     
+    # Q1(train_x, train_y, test_data, "kmeans_model")
+    
+    #visualize_vector(test_data[1])
+    Q2(train_x, train_y, test_data, "svm_model")
+    
     train_x = train_x.reshape((train_x.shape[0]*train_x.shape[1],train_x.shape[2]))
     valid_size = 10000
     train_x, train_y, valid_x, valid_y = make_validation_set(train_x, train_y, valid_size, "rand_indices.npy")
@@ -252,12 +257,7 @@ if __name__=='__main__':
     print("Reading data complete...")
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
     
-    #Q1(train_x, train_y, test_data, "kmeans_model")
     
-
-    
-    #visualize_vector(test_data[1])
-    #Q2(train_x, train_y, test_data)
     
     #Q3(train_x, train_y, test_data, valid_x, valid_y)
     

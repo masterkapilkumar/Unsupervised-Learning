@@ -189,10 +189,10 @@ def Q4(train_x, train_y, test_data, valid_x=None, valid_y=None, model=None, pred
     
     model = Sequential()
     ## 1 CNN layer
-    model.add(Conv2D(32, (3, 3), padding='same', activation='relu', input_shape=(28,28,1)))
+    model.add(Conv2D(32, (4, 4), padding='same', activation='relu', input_shape=(28,28,1)))
     # model.add(Conv2D(32, (3, 3), activation='relu'))
     ## Max Pooling
-    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(MaxPooling2D(pool_size=(4, 4)))
     model.add(Dropout(0.25))
     
     ## 1 fully connected layer
@@ -245,10 +245,6 @@ if __name__=='__main__':
         train_x, train_y, labels_map = load_train_data("train/")
         test_data = load_test_data("test.npy")
     
-    # Q1(train_x, train_y, test_data, "kmeans_model")
-    
-    #visualize_vector(test_data[1])
-    Q2(train_x, train_y, test_data, "svm_model")
     
     train_x = train_x.reshape((train_x.shape[0]*train_x.shape[1],train_x.shape[2]))
     valid_size = 10000
@@ -258,6 +254,10 @@ if __name__=='__main__':
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
     
     
+    Q1(train_x, train_y, test_data, "kmeans_model")
+    
+    #visualize_vector(test_data[1])
+    # Q2(train_x, train_y, test_data, "svm_model")
     
     #Q3(train_x, train_y, test_data, valid_x, valid_y)
     

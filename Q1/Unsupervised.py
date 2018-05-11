@@ -49,7 +49,7 @@ def Q1(train_x, train_y, test_data, model=None, pred_file="predictions.txt"):
     
     if(not model):
         ##########TRAINING##############
-        kmeans = KMeans(n_clusters=20, n_init=10)
+        kmeans = KMeans(n_clusters=20, n_init=10, max_iter=50)
         kmeans.fit(train_x)
         pickle.dump(kmeans, open("kmeans_model", 'wb'))
         model = kmeans
@@ -254,7 +254,7 @@ if __name__=='__main__':
     print("Time taken: %.2fs\n"%(calculate_time_elapsed()))
     
     
-    Q1(train_x, train_y, test_data, "kmeans_model")
+    Q1(train_x, train_y, test_data)
     
     #visualize_vector(test_data[1])
     # Q2(train_x, train_y, test_data, "svm_model")
